@@ -1,0 +1,154 @@
+diff --git a/_config.yml b/_config.yml
+index 3517322..0586fe9 100644
+--- a/_config.yml
++++ b/_config.yml
+@@ -181,38 +181,22 @@ creative_commons:
+   language: deed.zh
+ 
+ # Comments
+-# Valine
+-# For more information: https://github.com/amehime/MiniValine
+-valine:
+-  appId: #Your_appId
+-  appKey: #Your_appkey
+-  placeholder: ヽ(○´∀`)ﾉ♪ # Comment box placeholder
+-  avatar: mp # Gravatar style : mp, identicon, monsterid, wavatar, robohash, retro
+-  pageSize: 10 # Pagination size
+-  lang: en
+-  visitor: true # Article reading statistic
+-  NoRecordIP: false # Whether to record the commenter IP
+-  serverURLs: # When the custom domain name is enabled, fill it in here (it will be detected automatically by default, no need to fill in)
+-  powerMode: true
+-  tagMeta:
+-    visitor: 新朋友
+-    master: 主人
+-    friend: 小伙伴
+-    investor: 金主粑粑
+-  tagColor:
+-    master: "var(--color-orange)"
+-    friend: "var(--color-aqua)"
+-    investor: "var(--color-pink)"
+-  tagMember:
+-    master:
+-      # - hash of master@email.com
+-      # - hash of master2@email.com
+-    friend:
+-      # - hash of friend@email.com
+-      # - hash of friend2@email.com
+-    investor:
+-      # - hash of investor1@email.com
+-
++# Waline
++waline:
++  serverURL: https://xxx.vercel.app
++  lang: zh-CN
++  wordLimit: 0    # 评论字数限制，0为不限制，默认值为0
++  pageSize: 10    # 评论列表分页，数字为条数，默认值10
++  highlight: true # 代码高亮，默认true
++  meta: ['nick', 'mail', 'link'] # 评论者相关属性，默认['nick', 'mail', 'link']
++  requiredMeta: ['nick', 'mail'] #设置评论者属性必填项，默认[]（即匿名）
++  placeholder: '捧ぐる祈りの光~★' # 评论框占位提示符，默认'欢迎评论'
++  copyright: false # 是否显示页脚版权信息
++  emoji: [
++    'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/tw-emoji',
++    'https://cdn.jsdelivr.net/gh/norevi/waline-blobcatemojis@1.0/blobs',
++    'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/bilibili',
++  ] # 自定义表情包
+ # bgm
+ audio:
+   # - title: 列表1
+@@ -298,6 +282,6 @@ vendors:
+     lazyload: npm/lozad@1/dist/lozad.min.js
+     quicklink: npm/quicklink@2/dist/quicklink.umd.js
+     fancybox: combine/npm/jquery@3.5.1/dist/jquery.min.js,npm/@fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js,npm/justifiedGallery@3.8.1/dist/js/jquery.justifiedGallery.min.js
+-    valine: gh/amehime/MiniValine@4.2.2-beta10/dist/MiniValine.min.js
++    waline: npm/@waline/client/dist/Waline.min.js
+     copy_tex: npm/katex@0.12.0/dist/contrib/copy-tex.min.js
+     chart: npm/frappe-charts@1.5.0/dist/frappe-charts.min.iife.min.js
+diff --git a/layout/_macro/comment.njk b/layout/_macro/comment.njk
+index 4ba4e45..b4aeb98 100644
+--- a/layout/_macro/comment.njk
++++ b/layout/_macro/comment.njk
+@@ -1,5 +1,9 @@
+ {% macro render() %}
+ {%- if page.comment !== false %}
+-  <div class="wrap" id="comments"></div>
++    <div class="wrap" id="comments">
++      {%- if theme.waline.serverURL %}
++        <div id="waline-container"></div>
++      {% endif %}
++    </div>
+ {%- endif %}
+ {% endmacro %}
+diff --git a/layout/_partials/layout.njk b/layout/_partials/layout.njk
+index e298b54..a42db3e 100644
+--- a/layout/_partials/layout.njk
++++ b/layout/_partials/layout.njk
+@@ -108,7 +108,9 @@
+       stats: "{{ __('search.stats') }}"
+     },
+     {%- if theme.widgets.recent_comments or page.comment !== false  %}
+-    valine: {{ page.valine|safedump if page.valine else "true"  }},{%- endif %}
++    waline: {{ page.waline|safedump if page.waline else "true"  }},
++    {%- if page.comment !== false  %}
++    waline: {{ page.waline|safedump if page.waline else "true"  }},{%- endif %}
+     {%- if page.chart %}chart: true,{%- endif %}
+     {%- if page.math %}copy_tex: true,
+     katex: true,{%- endif %}
+diff --git a/scripts/generaters/script.js b/scripts/generaters/script.js
+index 370ff7b..4f7f1bc 100644
+--- a/scripts/generaters/script.js
++++ b/scripts/generaters/script.js
+@@ -21,20 +21,20 @@ hexo.extend.generator.register('script', function(locals){
+     darkmode: theme.darkmode,
+     auto_scroll: theme.auto_scroll,
+     js: {
+-      valine: theme.vendors.js.valine,
++      waline: theme.vendors.js.waline,
+       chart: theme.vendors.js.chart,
+       copy_tex: theme.vendors.js.copy_tex,
+       fancybox: theme.vendors.js.fancybox
+     },
+     css: {
+-      valine: theme.css + "/comment.css",
++      waline: theme.css + "/comment.css",
+       katex: theme.vendors.css.katex,
+       mermaid: theme.css + "/mermaid.css",
+       fancybox: theme.vendors.css.fancybox
+     },
+     loader: theme.loader,
+     search : null,
+-    valine: theme.valine,
++    waline: theme.waline,
+     quicklink: {
+       timeout : theme.quicklink.timeout,
+       priority: theme.quicklink.priority
+diff --git a/source/js/_app/pjax.js b/source/js/_app/pjax.js
+index 94e8115..4643c19 100644
+--- a/source/js/_app/pjax.js
++++ b/source/js/_app/pjax.js
+@@ -71,6 +71,24 @@ const siteRefresh = function (reload) {
+     }, 1000);
+   }, window.MiniValine);
+ 
++if(CONFIG.waline.serverURL) {
++  vendorJs('waline', function() {
++    var options = Object.assign({}, CONFIG.waline);
++    options = Object.assign(options, LOCAL.waline||{});
++    options.el = '#comments';
++    options.pathname = LOCAL.path;
++    options.pjax = pjax;
++    options.lazyload = lazyload;
++
++    new Waline(options);
++
++    setTimeout(function(){
++      positionInit(1);
++      postFancybox('.waline-container');
++    }, 1000);
++  }, window.Waline);
++}
++
+   if(!reload) {
+     $.each('script[data-pjax]', pjaxScript);
+   }
